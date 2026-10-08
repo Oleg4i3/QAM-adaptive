@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Розширений оптимізатор QAM з адаптивною вібрацією та ручним режимом</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f5f7fa;
+        }
+        .formula {
+            margin: 2px 0 2px 0;
+            padding: 2px;
+            background: #f8f9fa;
+            border-left: 0px solid #3498db;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .formula-description {
+            margin: 0 0 10px 0;
+            padding: 10px;
+            background: #f0f4f8;
+            border-radius: 5px;
+            font-size: 0.6em;
+            line-height: 1.5;
+        }
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .controls-container {
+            width: 410px;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .plot-container {
+            flex-grow: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        canvas { 
+            border: 1px solid #ddd; 
+            background: white; 
+            width: 100%;
+            max-width: 300px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            touch-action: none;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        label { 
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        select, input[type="range"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-value {
+            min-width: 60px;
+            text-align: right;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .error-rate {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            padding: 10px;
+            background: #fef2f2;
+            border-radius: 5px;
+        }
+        .modulation-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+        .formula {
+            background: #f0f4f8;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .noise-checkboxes {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .noise-checkbox {
+            display: flex;
+            align-items: center;
+        }
+        .noise-checkbox input {
+            margin-right: 8px;
+        }
+        .spoiler {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .spoiler-title {
+            background: #3498db;
+            color: white;
+            padding: 8px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .spoiler-content {
+            padding: 15px;
+            background: white;
+            display: none;
+        }
+        .spoiler.open .spoiler-content {
+            display: block;
+        }
+        .optimize-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 6px;
+            width: 100%;
+        }
+        .optimize-btn:hover {
+            background: #27ae60;
+        }
+        .optimize-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .optimization-status {
+            margin-top: 6px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.4em;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        .show-boundaries {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .show-boundaries input {
+            margin-right: 8px;
+        }
+        .save-load-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .save-btn, .load-btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .save-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+        }
+        .load-btn {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        .model-radio {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .model-option {
+            display: flex;
+            align-items: center;
+        }
+        .model-option input {
+            margin-right: 8px;
+        }
+        .manual-mode-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 6px;
+            width: 100%;
+        }
+        .manual-mode-btn.active {
+            background: #e74c3c;
+        }
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+            .controls-container, .plot-container {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+        
+    <div class="container">
+        <div class="controls-container">
+            <div class="control-group">
+                 
+                <label>Типи завад:</label>
+                <div class="noise-checkboxes">
+                    <div class="noise-checkbox">
+                        <input type="checkbox" id="awgnNoise" checked>
+                        <label for="awgnNoise">AWGN (адитивний Гаусівський шум)</label>
+                    </div>
+                    <div class="noise-checkbox">
+                        <input type="checkbox" id="phaseNoiseCheck">
+                        <label for="phaseNoiseCheck">Фазовий шум</label>
+                    </div>
+                    <div class="noise-checkbox">
+                        <input type="checkbox" id="ricianNoise" checked>
+                        <label for="ricianNoise">Райсівські завмирання</label>
+                    </div>
+                </div>
+                
+                <div id="awgnParams">
+                    <label for="noiseLevel">Рівень SNR (дБ):</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseLevel" min="-10" max="60" value="20" step="0.2">
+                        <span class="slider-value" id="noiseLevelValue">20 дБ</span>
+                    </div>
+                </div>
+                
+                <div id="ricianParams" style="display:none;">
+                    <label for="kParam">K-фактор (Райс):</label>
+                    <div class="slider-container">
+                        <input type="range" id="kParam" min="0" max="14" step="0.5" value="6">
+                        <span class="slider-value" id="kParamValue">6.0</span>
+                    </div>
+                </div>
+                
+                <div id="phaseNoiseParams" style="display:none;">
+                    <label for="phaseNoise">Рівень фазового шуму (σ_φ):</label>
+                    <div class="slider-container">
+                        <input type="range" id="phaseNoise" min="0" max="1.57" step="0.01" value="0.2">
+                        <span class="slider-value" id="phaseNoiseValue">0.20</span>
+                    </div>
+                    
+                    <div class="noise-checkbox">
+                        <input type="checkbox" id="autoBeta" checked>
+                        <label for="autoBeta">Автоматичний розрахунок β</label>
+                    </div>
+                    
+                    <div id="manualBetaParams" style="display:none;">
+                        <label for="anisotropyParam">Параметр анізотропії β:</label>
+                        <div class="slider-container">
+                            <input type="range" id="anisotropyParam" min="0.01" max="1" step="0.01" value="0.5">
+                            <span class="slider-value" id="anisotropyParamValue">0.50</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="show-boundaries">
+                    <input type="checkbox" id="showBoundaries">
+                    <label for="showBoundaries">Показувати межі Вороного</label>
+                </div>
+            </div>
+                <label for="constellationSize">Розмір сузір'я:</label>
+                <select id="constellationSize">
+                    <option value="16">16-QAM</option>
+                    <option value="32">32-QAM</option>
+                </select>
+                
+                <label for="initialConfig">Початкова конфігурація:</label>
+                <select id="initialConfig">
+                    <option value="standard">Стандартне</option>
+                    <option value="hexagonal">Гексагональне</option>
+                    <option value="goldenSpiral">Логарифмічна спіраль ("соняшник")</option>
+                    <option value="sparse">Розріджене</option>
+                    <option value="random">Випадкове</option>
+                    <option value="manual">Ручне розміщення</option>
+                </select>
+
+                <button id="manualModeBtn" class="manual-mode-btn">Увімкнути ручний режим</button>
+               
+            <div class="control-group">
+                <h3>Фізична модель взаємодії</h3>
+                  <div id="coulombParams">
+                        <label for="alphaParam">Показник степеня α:</label>
+                        <div class="slider-container">
+                            <input type="range" id="alphaParam" min="0.2" max="6" step="0.1" value="4">
+                            <span class="slider-value" id="alphaParamValue">4.0</span>
+                        </div>
+                        <label for="lambdaParam">Сила розрідження λ:</label>
+                        <div class="slider-container">
+                            <input type="range" id="lambdaParam" min="0" max="1" step="0.01" value="0.1">
+                            <span class="slider-value" id="lambdaParamValue">0.10</span>
+                        </div>
+                    </div>
+                <div class="model-radio">
+                    <div class="model-option">
+                           <input type="radio" id="modelCoulomb" name="forceModel" value="coulomb" checked>
+    <label for="modelCoulomb">Псевдокулонівська + градієнт щільності помилок + фазова анізотропія: 
+        <div class="formula">\[ 
+\vec{F}_{ij} = \frac{P_{err}(i) P_{err}(j)}{r_{ij}^\alpha} \cdot \frac{\vec{r}_{ij}}{r_{ij}}
+\]</div>
+        <div class="formula">\[ 
+K(\phi_{ij}) = \begin{bmatrix}
+\cos^2\phi_{ij} + \beta\sin^2\phi_{ij} & (1-\beta)\cos\phi_{ij}\sin\phi_{ij} \\
+(1-\beta)\cos\phi_{ij}\sin\phi_{ij} & \sin^2\phi_{ij} + \beta\cos^2\phi_{ij}
+\end{bmatrix}
+\]</div>
+        <div class="formula">\[ 
+\vec{F}_{ij}^{phase} = K(\phi_{ij}) \cdot \vec{F}_{ij}
+\]</div>
+        <div class="formula-description">
+            <strong>Де:</strong><br>
+            • \( K(\phi_{ij}) \) — кореляційний тензор для фазових завад<br>
+            • \( \phi_{ij} \) — кут між символами i та j<br>
+            • \( \beta \) — параметр анізотропії (β ≈ 1/(1 + σ²), де σ — рівень фазового шуму<br>
+            • При β=1: ізотропний випадок (AWGN)<br>
+            • При β→0: сильна анізотропія (фазові завади)
+        </div>
+<div class="formula">\[ 
+\nabla\rho_{err}(i) = \sum_{k \neq i} \vec{r}_{ik} \cdot \left( P_{err}(k) \cdot \frac{e^{-r_{ik}^2 / 2\sigma^2}}{\sigma^2} \right)
+\]</div>
+
+<div class="formula-description">
+    <strong>Де:</strong><br>
+    • \( \nabla\rho_{err}(i) \) — градієнт щільності помилок у позиції символу \( i \)<br>
+    • \( \vec{r}_{ik} \) — вектор від символу \( i \) до сусіда \( k \)<br>
+    • \( \sigma^2 = 0.05 \) — параметр Гаусового розмазування<br>
+    • Сума обчислюється для всіх сусідніх символів \( k \neq i \)
+</div>
+<div class="formula">\[ 
+\vec{F}_i = \sum_{j \neq i} \vec{F}_{ij} - \lambda \nabla\rho_{err}(i)
+\]</div>
+<div class="formula-description">
+    <strong>Де:</strong><br>
+    • \( \lambda \) — коефіцієнт розрідження (керується повзунком "λ")<br>
+    • Перший доданок — сума всіх парних кулонівських сил<br>
+    • Другий доданок — регуляризація для уникнення скупчень помилок
+</div>
+
+                        </label>
+                    </div>
+                  
+                    
+                    <div class="model-option">
+                        <input type="radio" id="modelErrorProb" name="forceModel" value="errorProb">
+                        <label for="modelErrorProb">Псевдо-кулонівська на основі суми ймовірністі помилки: 
+                            <div class="formula">\[ F_{ij} = \frac{(P_{err}(i)+ P_{err}(j))}{r_{ij}^\alpha} \]</div>
+                        </label>
+                    </div>
+                    
+                    <div class="model-option">
+                        <input type="radio" id="modelMahalanobis" name="forceModel" value="mahalanobis">
+                        <label for="modelMahalanobis"> Гаусівське відштовхування, Нормована відстань: 
+                            <div class="formula">\[ F_{ij} = e^{-D_M^2/2}, D_M = \frac{r_{ij}}{\sqrt{\sigma_i^2+\sigma_j^2}} \]</div>
+                        </label>
+                    </div>
+                    
+                    <div class="model-option">
+                        <input type="radio" id="modelLocalGradient" name="forceModel" value="localGradient">
+                        <label for="modelLocalGradient">Локальний градієнт: 
+                            <div class="formula">\[ F_i = -\nabla P_{err}(i) \]</div>
+                        </label>
+                    </div>
+                    
+                    <div class="model-option">
+                        <input type="radio" id="modelGlobalGradient" name="forceModel" value="globalGradient">
+                        <label for="modelGlobalGradient">Глобальний градієнт: 
+                            <div class="formula">\[ F = -\nabla BER \]</div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="noise-checkbox">
+                    <input type="checkbox" id="enablePotentialWell">
+                    <label for="enablePotentialWell">Додати потенціальну яму (доцентрову силу)</label>
+                </div>
+                
+                <div id="potentialWellParams" style="display:none;">
+                    <label for="wellStrength">Сила потенційної ями:</label>
+                    <div class="slider-container">
+                        <input type="range" id="wellStrength" min="0" max="1" step="0.01" value="0.1">
+                        <span class="slider-value" id="wellStrengthValue">0.10</span>
+                    </div>
+                </div>
+                
+                <div class="noise-checkbox">
+                    <input type="checkbox" id="enableRadialBias">
+                    <label for="enableRadialBias">Менше радіальне відштовхування</label>
+                </div>
+                
+                <div class="noise-checkbox">
+                    <input type="checkbox" id="enablePeakLimit">
+                    <label for="enablePeakLimit">Обмеження пікової потужності</label>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Збереження/Завантаження</h3>
+                <label for="configName">Назва конфігурації:</label>
+                <input type="text" id="configName" placeholder="Введіть назву">
+                <div class="save-load-group">
+                    <button id="saveBtn" class="save-btn">Зберегти у файл</button>
+                    <button id="loadBtn" class="load-btn">Завантажити з файлу</button>
+                </div>
+                <div id="savedConfigsList" style="margin-top: 10px;"></div>
+                <input type="file" id="configFileInput" style="display: none;" accept=".json">
+            </div>
+        </div>
+        
+       <div class="plot-container">
+            <canvas id="constellation" width="600" height="600"></canvas>
+
+            <div id="optimizationBlock">
+                <button id="optimizeBtn" class="optimize-btn">Запустити оптимізацію</button>
+                <div id="optimizationStatus" class="optimization-status"></div>
+                <div class="error-rate" id="errorRate">Помилки: 0.00%</div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Параметри оптимізації</h3>
+                
+                <label for="iterationCount">Кількість ітерацій:</label>
+                <div class="slider-container">
+                    <input type="range" id="iterationCount" min="100" max="50000" step="100" value="2000">
+                    <span class="slider-value" id="iterationCountValue">2000</span>
+                </div>
+                
+                <label for="timeStep">Крок інтегрування:</label>
+                <div class="slider-container">
+                    <input type="range" id="timeStep" min="0.01" max="0.5" step="0.01" value="0.1">
+                    <span class="slider-value" id="timeStepValue">0.10</span>
+                </div>
+                
+                <label for="dampingFactor">Коефіцієнт згасання:</label>
+                <div class="slider-container">
+                    <input type="range" id="dampingFactor" min="0.5" max="0.99" step="0.01" value="0.95">
+                    <span class="slider-value" id="dampingFactorValue">0.95</span>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Адаптивна вібрація (Simulated Annealing)</h3>
+                
+                <div class="noise-checkbox">
+                    <input type="checkbox" id="vibrationEnabled" checked>
+                    <label for="vibrationEnabled">Увімкнути адаптивну вібрацію</label>
+                </div>
+                
+                <label for="initialVibrationAmplitude">Початкова амплітуда вібрації (температура):</label>
+                <div class="slider-container">
+                    <input type="range" id="initialVibrationAmplitude" min="0" max="0.05" step="0.001" value="0.003">
+                    <span class="slider-value" id="initialVibrationAmplitudeValue">0.003</span>
+                </div>
+                
+                <label for="finalVibrationAmplitude">Кінцева амплітуда вібрації:</label>
+                <div class="slider-container">
+                    <input type="range" id="finalVibrationAmplitude" min="0" max="0.01" step="0.0001" value="0">
+                    <span class="slider-value" id="finalVibrationAmplitudeValue">0.000</span>
+                </div>
+                
+                <label for="vibrationFrequency">Частота вібрації (кожні N ітерацій):</label>
+                <div class="slider-container">
+                    <input type="range" id="vibrationFrequency" min="1" max="100" step="1" value="50">
+                    <span class="slider-value" id="vibrationFrequencyValue">50</span>
+                </div>
+                
+                <div class="noise-checkbox">
+                    <input type="checkbox" id="adaptiveVibration" checked>
+                    <label for="adaptiveVibration">Додаткова вібрація при застої</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ініціалізація елементів
+        const canvas = document.getElementById('constellation');
+        const ctx = canvas.getContext('2d');
+        const elements = {
+            lambdaParam: document.getElementById('lambdaParam'),
+            lambdaParamValue: document.getElementById('lambdaParamValue'),
+            manualModeBtn: document.getElementById('manualModeBtn'),
+            constellationSize: document.getElementById('constellationSize'),
+            initialConfig: document.getElementById('initialConfig'),
+            awgnNoise: document.getElementById('awgnNoise'),
+            phaseNoiseCheck: document.getElementById('phaseNoiseCheck'),
+            ricianNoise: document.getElementById('ricianNoise'),
+            noiseLevel: document.getElementById('noiseLevel'),
+            noiseLevelValue: document.getElementById('noiseLevelValue'),
+            kParam: document.getElementById('kParam'),
+            kParamValue: document.getElementById('kParamValue'),
+            phaseNoise: document.getElementById('phaseNoise'),
+            phaseNoiseValue: document.getElementById('phaseNoiseValue'),
+            errorRate: document.getElementById('errorRate'),
+            optimizeBtn: document.getElementById('optimizeBtn'),
+            optimizationStatus: document.getElementById('optimizationStatus'),
+            ricianParams: document.getElementById('ricianParams'),
+            phaseNoiseParams: document.getElementById('phaseNoiseParams'),
+            awgnParams: document.getElementById('awgnParams'),
+            showBoundaries: document.getElementById('showBoundaries'),
+            iterationCount: document.getElementById('iterationCount'),
+            iterationCountValue: document.getElementById('iterationCountValue'),
+            timeStep: document.getElementById('timeStep'),
+            timeStepValue: document.getElementById('timeStepValue'),
+            dampingFactor: document.getElementById('dampingFactor'),
+            dampingFactorValue: document.getElementById('dampingFactorValue'),
+            vibrationEnabled: document.getElementById('vibrationEnabled'),
+            initialVibrationAmplitude: document.getElementById('initialVibrationAmplitude'),
+            initialVibrationAmplitudeValue: document.getElementById('initialVibrationAmplitudeValue'),
+            finalVibrationAmplitude: document.getElementById('finalVibrationAmplitude'),
+            finalVibrationAmplitudeValue: document.getElementById('finalVibrationAmplitudeValue'),
+            vibrationFrequency: document.getElementById('vibrationFrequency'),
+            vibrationFrequencyValue: document.getElementById('vibrationFrequencyValue'),
+            adaptiveVibration: document.getElementById('adaptiveVibration'),
+            configName: document.getElementById('configName'),
+            saveBtn: document.getElementById('saveBtn'),
+            loadBtn: document.getElementById('loadBtn'),
+            savedConfigsList: document.getElementById('savedConfigsList'),
+            modelCoulomb: document.getElementById('modelCoulomb'),
+            modelErrorProb: document.getElementById('modelErrorProb'),
+            modelMahalanobis: document.getElementById('modelMahalanobis'),
+            modelLocalGradient: document.getElementById('modelLocalGradient'),
+            modelGlobalGradient: document.getElementById('modelGlobalGradient'),
+            alphaParam: document.getElementById('alphaParam'),
+            alphaParamValue: document.getElementById('alphaParamValue'),
+            enableRadialBias: document.getElementById('enableRadialBias'),
+            enablePeakLimit: document.getElementById('enablePeakLimit'),
+            enablePotentialWell: document.getElementById('enablePotentialWell'),
+            potentialWellParams: document.getElementById('potentialWellParams'),
+            wellStrength: document.getElementById('wellStrength'),
+            wellStrengthValue: document.getElementById('wellStrengthValue'),
+            configFileInput: document.getElementById('configFileInput'),
+            autoBeta: document.getElementById('autoBeta'),
+            anisotropyParam: document.getElementById('anisotropyParam'),
+            anisotropyParamValue: document.getElementById('anisotropyParamValue'),
+            manualBetaParams: document.getElementById('manualBetaParams')
+        };
+
+        // Поточне сузір'я
+        let currentConstellation = [];
+        let savedConfigurations = {};
+        let isOptimizing = false;
+        let stopRequested = false;
+        let isManualMode = false;
+        let draggedSymbolIndex = -1;
+        let isDragging = false;
+
+        // Попередньо визначені конфігурації
+        const predefinedConfigs = {
+            '16': {
+                'standard': [
+                    {re: -3, im: -3}, {re: -3, im: -1}, {re: -3, im: 1}, {re: -3, im: 3},
+                    {re: -1, im: -3}, {re: -1, im: -1}, {re: -1, im: 1}, {re: -1, im: 3},
+                    {re: 1, im: -3}, {re: 1, im: -1}, {re: 1, im: 1}, {re: 1, im: 3},
+                    {re: 3, im: -3}, {re: 3, im: -1}, {re: 3, im: 1}, {re: 3, im: 3}
+                ].map(s => ({re: s.re/Math.sqrt(10), im: s.im/Math.sqrt(10)})),
+                
+                'hexagonal': [
+                    {re: 1, im: -Math.sqrt(3)}, {re: 1, im: 0}, {re: 0.5, im: Math.sqrt(3)/2}, {re: -0.5, im: Math.sqrt(3)/2},
+                    {re: -1, im: 0}, {re: -0.5, im: -Math.sqrt(3)/2}, {re: 0.5, im: -Math.sqrt(3)/2}, {re: 2, im: 0},
+                    {re: 1, im: Math.sqrt(3)}, {re: -1, im: Math.sqrt(3)}, {re: -2, im: 0}, {re: -1, im: -Math.sqrt(3)},
+                    {re: 1.5, im: Math.sqrt(3)/2}, {re: -1.5, im: Math.sqrt(3)/2}, {re: -1.5, im: -Math.sqrt(3)/2}, {re: 1.5, im: -Math.sqrt(3)/2}
+                ].map(s => ({re: s.re/Math.sqrt(10), im: s.im/Math.sqrt(10)})),
+                
+                'goldenSpiral': (() => {
+                    const points = [];
+                    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+                    const arms = 4;
+                    
+                    for (let k = 0; k < 16; k++) {
+                        const arm = k % arms;
+                        const radius = 0.9 * Math.pow(k/16 + 0.05, 0.7);
+                        const angle = (goldenAngle * k) + (2*Math.PI/arms)*arm;
+                        
+                        points.push({
+                            re: radius * Math.cos(angle),
+                            im: radius * Math.sin(angle)
+                        });
+                    }
+                    
+                    return points;
+                })(),
+                
+                'sparse': [
+                    {re: -2.5, im: -2.5}, {re: -2.5, im: 2.5}, {re: 2.5, im: -2.5}, {re: 2.5, im: 2.5},
+                    {re: -1.2, im: -1.2}, {re: -1.2, im: 1.2}, {re: 1.2, im: -1.2}, {re: 1.2, im: 1.2},
+                    {re: -2.5, im: 0}, {re: 2.5, im: 0}, {re: 0, im: -2.5}, {re: 0, im: 2.5},
+                    {re: -1.2, im: 0}, {re: 1.2, im: 0}, {re: 0, im: -1.2}, {re: 0, im: 1.2}
+                ].map(s => ({re: s.re/3, im: s.im/3}))
+            },
+            '32': {
+                'standard': [ // Внутрішній квадрат 4×4 (16 точок)
+    {re: -3, im: -3}, {re: -3, im: -1}, {re: -3, im: 1}, {re: -3, im: 3},
+    {re: -1, im: -3}, {re: -1, im: -1}, {re: -1, im: 1}, {re: -1, im: 3},
+    {re: 1, im: -3}, {re: 1, im: -1}, {re: 1, im: 1}, {re: 1, im: 3},
+    {re: 3, im: -3}, {re: 3, im: -1}, {re: 3, im: 1}, {re: 3, im: 3},
+    
+    // Зовнішній квадрат (20 точок, але вибираємо 16 для симетрії)
+    {re: -5, im: -3}, {re: -5, im: -1}, {re: -5, im: 1}, {re: -5, im: 3},
+    {re: -3, im: -5}, {re: -1, im: -5}, {re: 1, im: -5}, {re: 3, im: -5},
+    {re: 5, im: -3}, {re: 5, im: -1}, {re: 5, im: 1}, {re: 5, im: 3},
+    {re: -3, im: 5}, {re: -1, im: 5}, {re: 1, im: 5}, {re: 3, im: 5}
+    ].map(s => ({re: s.re/Math.sqrt(20), im: s.im/Math.sqrt(20)})),
+                
+                'hexagonal': [
+    // Центральне кільце (6 точок + центр)
+    {re: 3, im: 0}, 
+    {re: 1, im: 0}, {re: -1, im: 0},
+    {re: 0.5, im: Math.sqrt(3)/2}, {re: -0.5, im: Math.sqrt(3)/2},
+    {re: 0.5, im: -Math.sqrt(3)/2}, {re: -0.5, im: -Math.sqrt(3)/2},
+
+    // Друге кільце (12 точок)
+    {re: 2, im: 0}, {re: -2, im: 0},
+    {re: 1, im: Math.sqrt(3)}, {re: -1, im: Math.sqrt(3)},
+    {re: 1, im: -Math.sqrt(3)}, {re: -1, im: -Math.sqrt(3)},
+    {re: 1.5, im: Math.sqrt(3)/2}, {re: -1.5, im: Math.sqrt(3)/2},
+    {re: 1.5, im: -Math.sqrt(3)/2}, {re: -1.5, im: -Math.sqrt(3)/2},
+    {re: 0, im: Math.sqrt(3)}, {re: 0, im: -Math.sqrt(3)},
+
+    // Третє кільце (13 точок - додаємо між основними)
+    {re: 2.5, im: Math.sqrt(3)/2}, {re: -2.5, im: Math.sqrt(3)/2},
+    {re: 2.5, im: -Math.sqrt(3)/2}, {re: -2.5, im: -Math.sqrt(3)/2},
+    {re: 2, im: Math.sqrt(3)}, {re: -2, im: Math.sqrt(3)},
+    {re: 2, im: -Math.sqrt(3)}, {re: -2, im: -Math.sqrt(3)},
+    {re: 0.5, im: 1.5*Math.sqrt(3)}, {re: -0.5, im: 1.5*Math.sqrt(3)},
+    {re: 0.5, im: -1.5*Math.sqrt(3)}, {re: -0.5, im: -1.5*Math.sqrt(3)},
+    {re: -3, im: 0}  // Остання точка для симетрії /3
+].map(s => ({re: s.re/Math.sqrt(10), im: s.im/Math.sqrt(10)})),
+                
+                'goldenSpiral': (() => {
+                    const points = [];
+                    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+                    const arms = 1;
+                    
+                    for (let k = 0; k < 32; k++) {
+                        const arm = k % arms;
+                        const radius = 0.4 * Math.pow(k/32 + 0.05, 0.6);
+                        const angle = (goldenAngle * k) + (2*Math.PI/arms)*arm;
+                        
+                        points.push({
+                            re: radius * Math.cos(angle),
+                            im: radius * Math.sin(angle)
+                        });
+                    }
+                    
+                    return points;
+                })(),
+                
+                'sparse': [
+                    {re: -3.5, im: -3.5}, {re: -3.5, im: 3.5}, {re: 3.5, im: -3.5}, {re: 3.5, im: 3.5},
+                    {re: -2.5, im: -2.5}, {re: -2.5, im: 2.5}, {re: 2.5, im: -2.5}, {re: 2.5, im: 2.5},
+                    {re: -1.5, im: -1.5}, {re: -1.5, im: 1.5}, {re: 1.5, im: -1.5}, {re: 1.5, im: 1.5},
+                    {re: -0.5, im: -0.5}, {re: -0.5, im: 0.5}, {re: 0.5, im: -0.5}, {re: 0.5, im: 0.5},
+                    {re: -4.5, im: 0}, {re: 4.5, im: 0}, {re: 0, im: -4.5}, {re: 0, im: 4.5},
+                    {re: -2.5, im: 0}, {re: 2.5, im: 0}, {re: 0, im: -2.5}, {re: 0, im: 2.5},
+                    {re: -1.5, im: 0}, {re: 1.5, im: 0}, {re: 0, im: -1.5}, {re: 0, im: 1.5},
+                    {re: -3.5, im: -1.5}, {re: -3.5, im: 1.5}, {re: 3.5, im: -1.5}, {re: 3.5, im: 1.5}
+                ].map(s => ({re: s.re/3.5, im: s.im/3.5}))
+                
+            }
+        };
+
+        // Нормалізація потужності сузір'я
+        function normalizeConstellationPower(constellation) {
+            const power = constellation.reduce((sum, s) => sum + s.re**2 + s.im**2, 0) / constellation.length;
+            let normalized = constellation.map(s => ({
+                re: s.re / Math.sqrt(power),
+                im: s.im / Math.sqrt(power)
+            }));
+            
+            if (elements.enablePeakLimit.checked) {
+                const peakPower = Math.max(...normalized.map(s => s.re**2 + s.im**2));
+                const maxPeak = 2.0;
+                if (peakPower > maxPeak) {
+                    const scale = Math.sqrt(maxPeak / peakPower);
+                    normalized = normalized.map(s => ({
+                        re: s.re * scale,
+                        im: s.im * scale
+                    }));
+                }
+            }
+            
+            return normalized;
+        }
+        
+        // Ініціалізація сузір'я
+        function initConstellation() {
+            const size = elements.constellationSize.value;
+            const configType = elements.initialConfig.value;
+            
+            if (configType === 'random') {
+                do {
+                    currentConstellation = Array.from({length: parseInt(size)}, () => ({
+                        re: (Math.random() * 2 - 1) * 1.5,
+                        im: (Math.random() * 2 - 1) * 1.5
+                    }));
+                } while (hasZeroSymbol(currentConstellation));
+            } else if (configType === 'manual') {
+                const radius = 1.0;
+                currentConstellation = Array.from({length: parseInt(size)}, (_, i) => {
+                    const angle = (i * 2 * Math.PI) / size;
+                    return {
+                        re: radius * Math.cos(angle),
+                        im: radius * Math.sin(angle)
+                    };
+                });
+                toggleManualMode(true);
+            } else {
+                currentConstellation = JSON.parse(JSON.stringify(predefinedConfigs[size][configType]));
+                if (hasZeroSymbol(currentConstellation)) {
+                    const zeroIndex = currentConstellation.findIndex(s => Math.abs(s.re) < 0.05 && Math.abs(s.im) < 0.05);
+                    if (zeroIndex >= 0) {
+                        currentConstellation[zeroIndex] = { re: 0.1, im: 0.1 };
+                    }
+                }
+                toggleManualMode(false);
+            }
+            
+            currentConstellation = normalizeConstellationPower(currentConstellation);
+            drawConstellation();
+        }
+
+        // Перевірка на нульовий символ
+        function hasZeroSymbol(constellation) {
+            return constellation.some(s => Math.abs(s.re) < 0.05 && Math.abs(s.im) < 0.05);
+        }
+
+        // Перемикання ручного режиму
+        function toggleManualMode(enable) {
+            isManualMode = enable;
+            elements.manualModeBtn.classList.toggle('active', enable);
+            elements.manualModeBtn.textContent = enable ? "Вимкнути ручний режим" : "Увімкнути ручний режим";
+            canvas.style.cursor = enable ? 'pointer' : 'default';
+        }
+
+        // Обробники подій для ручного режиму
+        function setupManualModeListeners() {
+            function getCanvasCoordinates(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                let clientX, clientY;
+                
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                const x = (clientX - rect.left) * scaleX;
+                const y = (clientY - rect.top) * scaleY;
+                
+                return {
+                    re: (x - canvas.width/2) / 100,
+                    im: (canvas.height/2 - y) / 100,
+                    x: x,
+                    y: y
+                };
+            }
+            
+            function handleStart(e) {
+                if (!isManualMode) return;
+                
+                e.preventDefault();
+                isDragging = true;
+                
+                const {re, im} = getCanvasCoordinates(e);
+                const pickRadius = 0.2;
+                let minDist = Infinity;
+                draggedSymbolIndex = -1;
+                
+                currentConstellation.forEach((symbol, index) => {
+                    const dist = Math.sqrt((re - symbol.re)**2 + (im - symbol.im)**2);
+                    if (dist < minDist && dist < pickRadius) {
+                        minDist = dist;
+                        draggedSymbolIndex = index;
+                    }
+                });
+                
+                if (draggedSymbolIndex >= 0) {
+                    drawConstellation(true);
+                }
+            }
+            
+            function handleMove(e) {
+                if (!isManualMode || !isDragging || draggedSymbolIndex < 0) return;
+                
+                e.preventDefault();
+                const {re, im} = getCanvasCoordinates(e);
+                
+                currentConstellation[draggedSymbolIndex].re = re;
+                currentConstellation[draggedSymbolIndex].im = im;
+                currentConstellation = normalizeConstellationPower(currentConstellation);
+                drawConstellation(true);
+            }
+            
+            function handleEnd() {
+                if (!isManualMode) return;
+                
+                isDragging = false;
+                if (draggedSymbolIndex >= 0) {
+                    drawConstellation();
+                }
+                draggedSymbolIndex = -1;
+            }
+            
+            // Обробники миші
+            canvas.addEventListener('mousedown', handleStart);
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+            
+            // Обробники тач-скріну
+            canvas.addEventListener('touchstart', handleStart, {passive: false});
+            document.addEventListener('touchmove', handleMove, {passive: false});
+            document.addEventListener('touchend', handleEnd);
+        }
+
+        // Генератор нормального розподілу
+        function randn() {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // Логарифмічна шкала для K-фактора
+        function logScaleK(value) {
+            return Math.pow(2, value - 2);
+        }
+
+        // Отримання поточного значення β
+        function getCurrentBeta() {
+            if (!elements.phaseNoiseCheck.checked) return 1; // Немає фазового шуму - ізотропний випадок
+            
+            if (elements.autoBeta.checked) {
+                // Автоматичний розрахунок β ≈ 1/(1 + σ_φ²)
+                const phaseNoise = parseFloat(elements.phaseNoise.value);
+                return 1 / (1 + phaseNoise * phaseNoise);
+            } else {
+                // Ручне встановлення β
+                return parseFloat(elements.anisotropyParam.value);
+            }
+        }
+
+        // Додавання шумів до сигналу
+        function addNoise(symbol, snrLinear, hasAwgn, hasPhaseNoise, hasRician, phaseNoiseLevel, kFactor) {
+            let re = symbol.re;
+            let im = symbol.im;
+            
+            if (hasAwgn) {
+                const noiseStd = 1 / Math.sqrt(2 * snrLinear);
+                re += noiseStd * randn();
+                im += noiseStd * randn();
+            }
+            
+            if (hasPhaseNoise) {
+                const phaseNoise = phaseNoiseLevel * randn();
+                const mag = Math.sqrt(re*re + im*im);
+                const originalPhase = Math.atan2(im, re);
+                const newPhase = originalPhase + phaseNoise;
+                re = mag * Math.cos(newPhase);
+                im = mag * Math.sin(newPhase);
+            }
+            
+            if (hasRician) {
+                const los = Math.sqrt(kFactor / (kFactor + 1));
+                const rayleigh_re = randn() / Math.sqrt(2 * (kFactor + 1));
+                const rayleigh_im = randn() / Math.sqrt(2 * (kFactor + 1));
+                
+                const h_re = los + rayleigh_re;
+                const h_im = rayleigh_im;
+                
+                const new_re = re * h_re - im * h_im;
+                const new_im = re * h_im + im * h_re;
+                re = new_re;
+                im = new_im;
+            }
+            
+            return { re, im };
+        }
+
+        // Метод найближчого сусіда для детекції
+        function nearestNeighborDecision(re, im, constellation) {
+            let minDist = Infinity;
+            let region = -1;
+            
+            constellation.forEach((symbol, index) => {
+                const dist = Math.sqrt((re - symbol.re)**2 + (im - symbol.im)**2);
+                if (dist < minDist) {
+                    minDist = dist;
+                    region = index;
+                }
+            });
+            
+            return region;
+        }
+
+        // Оцінка ймовірності помилки для кожного символу
+        function estimateSymbolErrorRates(constellation, snrDb, hasAwgn, hasPhaseNoise, hasRician, phaseNoiseLevel, kFactor, numSamples = 2000) {
+            const snrLinear = Math.pow(10, snrDb / 10);
+            const errorCounts = new Array(constellation.length).fill(0);
+            const totalPerSymbol = Math.floor(numSamples / constellation.length);
+            
+            for (let symIndex = 0; symIndex < constellation.length; symIndex++) {
+                for (let i = 0; i < totalPerSymbol; i++) {
+                    const sym = constellation[symIndex];
+                    
+                    const noisySymbol = addNoise(sym, snrLinear, hasAwgn, hasPhaseNoise, hasRician, phaseNoiseLevel, kFactor);
+                    const detectedRegion = nearestNeighborDecision(noisySymbol.re, noisySymbol.im, constellation);
+                    
+                    if (detectedRegion !== symIndex) {
+                        errorCounts[symIndex]++;
+                    }
+                }
+            }
+            
+            return errorCounts.map(count => count / totalPerSymbol);
+        }
+
+        // Оптимізація методом задачі Томсона з адаптивною вібрацією
+        async function optimizeWithThomson() {
+            const hasAwgn = elements.awgnNoise.checked;
+            const hasPhaseNoise = elements.phaseNoiseCheck.checked;
+            const hasRician = elements.ricianNoise.checked;
+            
+            const maxIterations = parseInt(elements.iterationCount.value);
+            const maxSpeed = 0.2;
+            
+            const vibrationEnabled = elements.vibrationEnabled.checked;
+            const vibrationFrequency = parseInt(elements.vibrationFrequency.value);
+            const adaptiveVibration = elements.adaptiveVibration.checked;
+            
+            let forceModel = 'coulomb';
+            if (elements.modelErrorProb.checked) forceModel = 'errorProb';
+            else if (elements.modelMahalanobis.checked) forceModel = 'mahalanobis';
+            else if (elements.modelLocalGradient.checked) forceModel = 'localGradient';
+            else if (elements.modelGlobalGradient.checked) forceModel = 'globalGradient';
+            
+            const radialBiasEnabled = elements.enableRadialBias.checked;
+            const potentialWellEnabled = elements.enablePotentialWell.checked;
+            const wellStrength = parseFloat(elements.wellStrength.value);
+            
+            let constellation = [...currentConstellation];
+            let velocities = Array.from({length: constellation.length}, () => ({re: 0, im: 0}));
+            let bestConstellation = [...constellation];
+            let bestBER = Infinity;
+            let lastBestBER = Infinity;
+            let noImprovementCount = 0;
+            
+            isOptimizing = true;
+            stopRequested = false;
+            elements.optimizeBtn.textContent = "⏹ Зупинити оптимізацію";
+            elements.optimizationStatus.textContent = "Початок оптимізації методом Томсона з адаптивною вібрацією...";
+            
+            for (let iter = 0; iter < maxIterations; iter++) {
+                if (stopRequested) {
+                    elements.optimizationStatus.textContent = `❌ Оптимізацію зупинено користувачем на ${iter + 1}-й ітерації`;
+                    break;
+                }
+                const initialVibration = parseFloat(elements.initialVibrationAmplitude.value);
+                const finalVibration = parseFloat(elements.finalVibrationAmplitude.value);
+                
+                const alpha = parseFloat(elements.alphaParam.value);
+                const snrDb = parseFloat(elements.noiseLevel.value);
+                const kFactor = hasRician ? logScaleK(parseFloat(elements.kParam.value)) : 0;
+                const phaseNoiseLevel = parseFloat(elements.phaseNoise.value);
+                const dt = parseFloat(elements.timeStep.value);
+                const damping = parseFloat(elements.dampingFactor.value);
+                
+                const currentVibration = finalVibration + (initialVibration - finalVibration) * Math.exp(-5 * iter / maxIterations);
+                
+                const errorRates = estimateSymbolErrorRates(
+                    constellation, 
+                    snrDb, 
+                    hasAwgn, 
+                    hasPhaseNoise, 
+                    hasRician, 
+                    phaseNoiseLevel, 
+                    kFactor,
+                    10000
+                );
+                
+                const currentBER = errorRates.reduce((sum, rate) => sum + rate, 0) / errorRates.length;
+                
+                if (currentBER < bestBER) {
+                    bestBER = currentBER;
+                    bestConstellation = [...constellation];
+                }
+                
+                if (currentBER >= lastBestBER * 0.99) {
+                    noImprovementCount++;
+                } else {
+                    noImprovementCount = 0;
+                    lastBestBER = currentBER;
+                }
+                
+                const forces = Array.from({length: constellation.length}, () => ({re: 0, im: 0}));
+                
+                if (forceModel === 'globalGradient') {
+                    const globalForces = computeGlobalGradient(constellation);
+                    for (let i = 0; i < constellation.length; i++) {
+                        forces[i].re = globalForces[i].re;
+                        forces[i].im = globalForces[i].im;
+                    }
+                } else {
+                    for (let i = 0; i < constellation.length; i++) {
+                        if (forceModel === 'localGradient') {
+                            const {fx, fy} = computeLocalGradient(constellation, i, errorRates);
+                            forces[i].re += fx;
+                            forces[i].im += fy;
+                        } else {
+                            for (let j = i+1; j < constellation.length; j++) {
+                                const dx = constellation[j].re - constellation[i].re;
+                                const dy = constellation[j].im - constellation[i].im;
+                                const dist = Math.sqrt(dx*dx + dy*dy);
+                                
+                                const {fx, fy} = computeForce(forceModel, errorRates, i, j, dx, dy, dist, alpha, constellation);
+                                
+                                let radialFx = fx;
+                                let radialFy = fy;
+                                if (radialBiasEnabled) {
+                                    const radialFactor = 0.01;
+                                    const radial = (dx * fx + dy * fy) / (dist * dist + 0.01);
+                                    radialFx = fx + radial * dx * (radialFactor - 1);
+                                    radialFy = fy + radial * dy * (radialFactor - 1);
+                                }
+                                
+                                forces[i].re -= radialFx;
+                                forces[i].im -= radialFy;
+                                forces[j].re += radialFx;
+                                forces[j].im += radialFy;
+                            }
+                        }
+                    }
+                }
+                
+                if (potentialWellEnabled) {
+                    for (let i = 0; i < constellation.length; i++) {
+                        const {fx, fy} = computeCentripetalForce(constellation[i], wellStrength);
+                        forces[i].re += fx;
+                        forces[i].im += fy;
+                    }
+                }
+                
+                for (let i = 0; i < constellation.length; i++) {
+                    velocities[i].re = damping * velocities[i].re + forces[i].re * dt;
+                    velocities[i].im = damping * velocities[i].im + forces[i].im * dt;
+                    
+                    const speed = Math.sqrt(velocities[i].re**2 + velocities[i].im**2);
+                    if (speed > maxSpeed) {
+                        velocities[i].re = velocities[i].re * maxSpeed / speed;
+                        velocities[i].im = velocities[i].im * maxSpeed / speed;
+                    }
+                    
+                    constellation[i].re += velocities[i].re * dt;
+                    constellation[i].im += velocities[i].im * dt;
+                }
+                
+                if (vibrationEnabled) {
+                    if (iter % vibrationFrequency === 0) {
+                        for (let i = 0; i < constellation.length; i++) {
+                            constellation[i].re += (randn() * currentVibration);
+                            constellation[i].im += (randn() * currentVibration);
+                        }
+                    }
+                    
+                    if (adaptiveVibration && noImprovementCount > 10) {
+                        const adaptiveAmplitude = currentVibration * 3;
+                        for (let i = 0; i < constellation.length; i++) {
+                            constellation[i].re += (randn() * adaptiveAmplitude);
+                            constellation[i].im += (randn() * adaptiveAmplitude);
+                        }
+                        noImprovementCount = 0;
+                        elements.optimizationStatus.textContent += ` [АДАПТИВНА ВІБРАЦІЯ ${adaptiveAmplitude.toFixed(5)}]`;
+                    }
+                }
+                
+                constellation = normalizeConstellationPower(constellation);
+                
+                elements.optimizationStatus.textContent = `Ітер ${iter+1}/${maxIterations}: cBER = ${currentBER.toFixed(6)}, bBER = ${bestBER.toFixed(6)}, Вібр = ${currentVibration.toFixed(5)}`;
+                
+                if (iter % 5 === 0 || iter === maxIterations - 1) {
+                    currentConstellation = [...constellation];
+                    drawConstellation();
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            
+            currentConstellation = [...bestConstellation];
+            isOptimizing = false;
+            elements.optimizeBtn.textContent = "Запустити оптимізацію";
+            elements.optimizationStatus.textContent = `Оптимізація завершена. Найкращий BER: ${bestBER.toFixed(6)}`;
+            drawConstellation();
+        }
+
+        // Обчислення градієнта для локального методу
+        function computeLocalGradient(constellation, symbolIndex, errorRates, delta = 0.01) {
+            const originalSymbol = constellation[symbolIndex];
+            const originalError = errorRates[symbolIndex];
+            
+            const xPlus = [...constellation];
+            xPlus[symbolIndex] = { re: originalSymbol.re + delta, im: originalSymbol.im };
+            const xPlusError = estimateSymbolErrorRates(
+                xPlus, 
+                parseFloat(elements.noiseLevel.value),
+                elements.awgnNoise.checked,
+                elements.phaseNoiseCheck.checked,
+                elements.ricianNoise.checked,
+                parseFloat(elements.phaseNoise.value),
+                elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                500
+            )[symbolIndex];
+            
+            const xMinus = [...constellation];
+            xMinus[symbolIndex] = { re: originalSymbol.re - delta, im: originalSymbol.im };
+            const xMinusError = estimateSymbolErrorRates(
+                xMinus, 
+                parseFloat(elements.noiseLevel.value),
+                elements.awgnNoise.checked,
+                elements.phaseNoiseCheck.checked,
+                elements.ricianNoise.checked,
+                parseFloat(elements.phaseNoise.value),
+                elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                500
+            )[symbolIndex];
+            
+            const yPlus = [...constellation];
+            yPlus[symbolIndex] = { re: originalSymbol.re, im: originalSymbol.im + delta };
+            const yPlusError = estimateSymbolErrorRates(
+                yPlus, 
+                parseFloat(elements.noiseLevel.value),
+                elements.awgnNoise.checked,
+                elements.phaseNoiseCheck.checked,
+                elements.ricianNoise.checked,
+                parseFloat(elements.phaseNoise.value),
+                elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                500
+            )[symbolIndex];
+            
+            const yMinus = [...constellation];
+            yMinus[symbolIndex] = { re: originalSymbol.re, im: originalSymbol.im - delta };
+            const yMinusError = estimateSymbolErrorRates(
+                yMinus, 
+                parseFloat(elements.noiseLevel.value),
+                elements.awgnNoise.checked,
+                elements.phaseNoiseCheck.checked,
+                elements.ricianNoise.checked,
+                parseFloat(elements.phaseNoise.value),
+                elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                500
+            )[symbolIndex];
+            
+            const gradX = (xPlusError - xMinusError) / (2 * delta);
+            const gradY = (yPlusError - yMinusError) / (2 * delta);
+            
+            return { fx: -gradX, fy: -gradY };
+        }
+
+        // Обчислення градієнта для глобального методу
+        function computeGlobalGradient(constellation, delta = 0.01) {
+            const originalBER = estimateSymbolErrorRates(
+                constellation, 
+                parseFloat(elements.noiseLevel.value),
+                elements.awgnNoise.checked,
+                elements.phaseNoiseCheck.checked,
+                elements.ricianNoise.checked,
+                parseFloat(elements.phaseNoise.value),
+                elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                1000
+            ).reduce((sum, rate) => sum + rate, 0) / constellation.length;
+            
+            const forces = Array.from({length: constellation.length}, () => ({re: 0, im: 0}));
+            
+            for (let i = 0; i < constellation.length; i++) {
+                const xPlus = [...constellation];
+                xPlus[i] = { re: constellation[i].re + delta, im: constellation[i].im };
+                const xPlusBER = estimateSymbolErrorRates(
+                    xPlus, 
+                    parseFloat(elements.noiseLevel.value),
+                    elements.awgnNoise.checked,
+                    elements.phaseNoiseCheck.checked,
+                    elements.ricianNoise.checked,
+                    parseFloat(elements.phaseNoise.value),
+                    elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                    1000
+                ).reduce((sum, rate) => sum + rate, 0) / constellation.length;
+                
+                const xMinus = [...constellation];
+                xMinus[i] = { re: constellation[i].re - delta, im: constellation[i].im };
+                const xMinusBER = estimateSymbolErrorRates(
+                    xMinus, 
+                    parseFloat(elements.noiseLevel.value),
+                    elements.awgnNoise.checked,
+                    elements.phaseNoiseCheck.checked,
+                    elements.ricianNoise.checked,
+                    parseFloat(elements.phaseNoise.value),
+                    elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                    1000
+                ).reduce((sum, rate) => sum + rate, 0) / constellation.length;
+                
+                const yPlus = [...constellation];
+                yPlus[i] = { re: constellation[i].re, im: constellation[i].im + delta };
+                const yPlusBER = estimateSymbolErrorRates(
+                    yPlus, 
+                    parseFloat(elements.noiseLevel.value),
+                    elements.awgnNoise.checked,
+                    elements.phaseNoiseCheck.checked,
+                    elements.ricianNoise.checked,
+                    parseFloat(elements.phaseNoise.value),
+                    elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                    1000
+                ).reduce((sum, rate) => sum + rate, 0) / constellation.length;
+                
+                const yMinus = [...constellation];
+                yMinus[i] = { re: constellation[i].re, im: constellation[i].im - delta };
+                const yMinusBER = estimateSymbolErrorRates(
+                    yMinus, 
+                    parseFloat(elements.noiseLevel.value),
+                    elements.awgnNoise.checked,
+                    elements.phaseNoiseCheck.checked,
+                    elements.ricianNoise.checked,
+                    parseFloat(elements.phaseNoise.value),
+                    elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                    1000
+                ).reduce((sum, rate) => sum + rate, 0) / constellation.length;
+                
+                forces[i].re = -(xPlusBER - xMinusBER) / (2 * delta);
+                forces[i].im = -(yPlusBER - yMinusBER) / (2 * delta);
+            }
+            
+            return forces;
+        }
+
+        // Обчислення сили взаємодії між символами
+        function computeForce(model, errorRates, i, j, dx, dy, dist, alpha, constellation) {
+            const safeDist = Math.max(dist, 0.001);
+            const hasPhaseNoise = elements.phaseNoiseCheck.checked;
+            const beta = hasPhaseNoise ? getCurrentBeta() : 1;
+            
+            switch(model) {
+                case 'coulomb': {
+                    const q_i = errorRates[i] + 0.001;
+                    const q_j = errorRates[j] + 0.001;
+                    const force = (q_i * q_j) / Math.pow(safeDist, alpha);
+                    
+                    let fx_base = force * dx / safeDist;
+                    let fy_base = force * dy / safeDist;
+                    
+                    // Застосування кореляційного тензора для фазових завад
+                    if (hasPhaseNoise) {
+                        const phi_ij = Math.atan2(dy, dx);
+                        const cosPhi = Math.cos(phi_ij);
+                        const sinPhi = Math.sin(phi_ij);
+                        
+                        // Елементи кореляційного тензора
+                        const k11 = cosPhi*cosPhi + beta*sinPhi*sinPhi;
+                        const k12 = (1-beta)*cosPhi*sinPhi;
+                        const k22 = sinPhi*sinPhi + beta*cosPhi*cosPhi;
+                        
+                        // Трансформація сили через тензор
+                        const new_fx = fx_base * k11 + fy_base * k12;
+                        const new_fy = fx_base * k12 + fy_base * k22;
+                        
+                        fx_base = new_fx;
+                        fy_base = new_fy;
+                    }
+                    
+                    const lambda = parseFloat(elements.lambdaParam.value);
+                    const sigma2 = 0.05;
+                    let errorFx = 0;
+                    let errorFy = 0;
+
+                    for (let k = 0; k < constellation.length; k++) {
+                        if (k === i) continue;
+
+                        const dxk = constellation[i].re - constellation[k].re;
+                        const dyk = constellation[i].im - constellation[k].im;
+                        const dist2 = dxk * dxk + dyk * dyk;
+
+                        const weight = Math.exp(-dist2 / (2 * sigma2)) * errorRates[k];
+                        errorFx += dxk * weight / sigma2;
+                        errorFy += dyk * weight / sigma2;
+                    }
+
+                    return {
+                        fx: fx_base - lambda * errorFx,
+                        fy: fy_base - lambda * errorFy
+                    };
+                }
+                case 'errorProb':
+                    const p_i = errorRates[i] + 0.001;
+                    const p_j = errorRates[j] + 0.001;
+                    const probForce = ( p_i + p_j ) / Math.pow(safeDist, alpha);
+                    return {
+                        fx: probForce * dx / safeDist,
+                        fy: probForce * dy / safeDist
+                    };
+                    
+                case 'mahalanobis':
+                    const sigma_i = Math.sqrt(errorRates[i] + 0.001);
+                    const sigma_j = Math.sqrt(errorRates[j] + 0.001);
+                    const mahalanobisDist = safeDist / Math.sqrt(sigma_i*sigma_i + sigma_j*sigma_j);
+                    const mForce = Math.exp(-0.5 * mahalanobisDist * mahalanobisDist);
+                    return {
+                        fx: mForce * dx / safeDist,
+                        fy: mForce * dy / safeDist
+                    };
+                    
+                case 'localGradient':
+                    return computeLocalGradient(constellation, i, errorRates);
+                    
+                default:
+                    return { fx: 0, fy: 0 };
+            }
+        }
+
+        // Обчислення доцентрової сили (потенційної ями)
+        function computeCentripetalForce(point, strength) {
+            const distToCenter = Math.sqrt(point.re**2 + point.im**2);
+            if (distToCenter < 0.001) return { fx: 0, fy: 0 };
+            
+            const maxDistance = 0.0;
+            let force = 0;
+            
+            if (distToCenter > maxDistance) {
+                force = strength *  Math.pow((distToCenter - maxDistance), 0.5);
+            } else {
+                force = strength * 0.03 * distToCenter;
+            }
+            
+            return {
+                fx: -force * point.re / distToCenter,
+                fy: -force * point.im / distToCenter
+            };
+        }
+
+        // Візуалізація меж Вороного
+        function drawVoronoiBoundaries() {
+            if (!elements.showBoundaries.checked) return;
+            
+            const step = 4;
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            for (let x = 0; x < width; x += step) {
+                for (let y = 0; y < height; y += step) {
+                    const re = (x - width/2) / 100;
+                    const im = (height/2 - y) / 100;
+                    const region = nearestNeighborDecision(re, im, currentConstellation);
+                    
+                    const hue = (region * 137.508) % 360;
+                    tempCtx.fillStyle = `hsla(${hue}, 70%, 80%, 0.15)`;
+                    tempCtx.fillRect(x, y, step, step);
+                }
+            }
+            
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+
+        // Малювання сузір'я
+        function drawConstellation(highlightSymbol = false) {
+            const snrDb = parseFloat(elements.noiseLevel.value);
+            const snrLinear = Math.pow(10, snrDb / 10);
+            const hasAwgn = elements.awgnNoise.checked;
+            const hasPhaseNoise = elements.phaseNoiseCheck.checked;
+            const phaseNoiseLevel = parseFloat(elements.phaseNoise.value);
+            const hasRician = elements.ricianNoise.checked;
+            const kFactor = hasRician ? logScaleK(parseFloat(elements.kParam.value)) : 0;
+            
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#ccc';
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 0);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.moveTo(0, canvas.height/2);
+            ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+            
+            drawVoronoiBoundaries();
+            
+            currentConstellation.forEach((sym, index) => {
+                const x = canvas.width/2 + sym.re * 100;
+                const y = canvas.height/2 - sym.im * 100;
+                
+                const hue = (index * 137.508) % 360;
+                
+                if (highlightSymbol && index === draggedSymbolIndex) {
+                    ctx.fillStyle = `hsl(${hue}, 100%, 30%)`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+                const pointSize = currentConstellation.length > 16 ? 3 : 5;
+                ctx.beginPath();
+                ctx.arc(x, y, pointSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                if (currentConstellation.length <= 16) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(index.toString(), x, y);
+                }
+            });
+            
+            let errorCount = 0;
+            const totalPoints = currentConstellation.length > 16 ? 30000 : 15000;
+            
+            for (let i = 0; i < totalPoints; i++) {
+                const symIndex = Math.floor(Math.random() * currentConstellation.length);
+                const sym = currentConstellation[symIndex];
+                
+                const noisySymbol = addNoise(sym, snrLinear, hasAwgn, hasPhaseNoise, hasRician, phaseNoiseLevel, kFactor);
+                const detectedRegion = nearestNeighborDecision(noisySymbol.re, noisySymbol.im, currentConstellation);
+                const isError = detectedRegion !== symIndex;
+                
+                if (isError) {
+                    errorCount++;
+                }
+                
+                const x = canvas.width/2 + noisySymbol.re * 100;
+                const y = canvas.height/2 - noisySymbol.im * 100;
+                if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1, 0, Math.PI * 2);
+                    ctx.fillStyle = isError ? 'rgba(255,0,0,0.5)' : 'rgba(0,0,255,0.2)';
+                    ctx.fill();
+                }
+            }
+            
+            const errorPercentage = (errorCount / totalPoints * 100).toFixed(2);
+            elements.errorRate.textContent = `Помилки: ${errorPercentage}%`;
+        }
+
+        // Збереження конфігурації у файл
+        function saveConfigurationToFile() {
+            const configName = elements.configName.value.trim();
+            if (!configName) {
+                alert("Будь ласка, введіть назву конфігурації");
+                return;
+            }
+            
+            const configData = {
+                name: configName,
+                constellationSize: elements.constellationSize.value,
+                constellation: [...currentConstellation],
+                timestamp: new Date().toISOString(),
+                snrDb: parseFloat(elements.noiseLevel.value),
+                hasAwgn: elements.awgnNoise.checked,
+                hasPhaseNoise: elements.phaseNoiseCheck.checked,
+                phaseNoiseLevel: parseFloat(elements.phaseNoise.value),
+                hasRician: elements.ricianNoise.checked,
+                kFactor: elements.ricianNoise.checked ? logScaleK(parseFloat(elements.kParam.value)) : 0,
+                autoBeta: elements.autoBeta.checked,
+                anisotropyParam: parseFloat(elements.anisotropyParam.value),
+                optimizationParams: {
+                    forceModel: elements.modelCoulomb.checked ? 'coulomb' : 
+                               elements.modelErrorProb.checked ? 'errorProb' :
+                               elements.modelMahalanobis.checked ? 'mahalanobis' :
+                               elements.modelLocalGradient.checked ? 'localGradient' : 'globalGradient',
+                    alphaParam: parseFloat(elements.alphaParam.value),
+                    lambdaParam: parseFloat(elements.lambdaParam.value),
+                    enablePotentialWell: elements.enablePotentialWell.checked,
+                    wellStrength: parseFloat(elements.wellStrength.value),
+                    enableRadialBias: elements.enableRadialBias.checked,
+                    enablePeakLimit: elements.enablePeakLimit.checked,
+                    iterationCount: parseInt(elements.iterationCount.value),
+                    timeStep: parseFloat(elements.timeStep.value),
+                    dampingFactor: parseFloat(elements.dampingFactor.value),
+                    vibrationEnabled: elements.vibrationEnabled.checked,
+                    initialVibrationAmplitude: parseFloat(elements.initialVibrationAmplitude.value),
+                    finalVibrationAmplitude: parseFloat(elements.finalVibrationAmplitude.value),
+                    vibrationFrequency: parseInt(elements.vibrationFrequency.value),
+                    adaptiveVibration: elements.adaptiveVibration.checked
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(configData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `qam_config_${configName.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            elements.configName.value = "";
+            alert(`Конфігурація "${configName}" збережена у файл!`);
+        }
+
+        // Завантаження конфігурації з файлу
+        function loadConfigurationFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const config = JSON.parse(e.target.result);
+                    
+                    elements.constellationSize.value = config.constellationSize || '16';
+                    
+                    currentConstellation = [...config.constellation];
+                    elements.noiseLevel.value = config.snrDb;
+                    elements.noiseLevelValue.textContent = config.snrDb.toFixed(1) + ' дБ';
+                    elements.awgnNoise.checked = config.hasAwgn;
+                    elements.phaseNoiseCheck.checked = config.hasPhaseNoise;
+                    elements.phaseNoise.value = config.phaseNoiseLevel;
+                    elements.phaseNoiseValue.textContent = config.phaseNoiseLevel.toFixed(2);
+                    elements.ricianNoise.checked = config.hasRician;
+                    
+                    if (config.hasRician) {
+                        const kValue = Math.log2(config.kFactor) + 2;
+                        elements.kParam.value = kValue;
+                        elements.kParamValue.textContent = config.kFactor.toFixed(2);
+                    }
+                    
+                    if ('autoBeta' in config) {
+                        elements.autoBeta.checked = config.autoBeta;
+                    }
+                    
+                    if ('anisotropyParam' in config) {
+                        elements.anisotropyParam.value = config.anisotropyParam;
+                        elements.anisotropyParamValue.textContent = config.anisotropyParam.toFixed(2);
+                    }
+                    
+                    if (config.optimizationParams) {
+                        const params = config.optimizationParams;
+                        if ('lambdaParam' in params) {
+                            elements.lambdaParam.value = params.lambdaParam;
+                            elements.lambdaParamValue.textContent = params.lambdaParam.toFixed(2);
+                        }
+
+                        document.querySelector(`input[name="forceModel"][value="${params.forceModel}"]`).checked = true;
+                        
+                        elements.alphaParam.value = params.alphaParam;
+                        elements.alphaParamValue.textContent = params.alphaParam.toFixed(1);
+                        
+                        elements.enablePotentialWell.checked = params.enablePotentialWell;
+                        elements.wellStrength.value = params.wellStrength;
+                        elements.wellStrengthValue.textContent = params.wellStrength.toFixed(2);
+                        
+                        elements.enableRadialBias.checked = params.enableRadialBias;
+                        elements.enablePeakLimit.checked = params.enablePeakLimit;
+                        
+                        elements.iterationCount.value = params.iterationCount;
+                        elements.iterationCountValue.textContent = params.iterationCount;
+                        
+                        elements.timeStep.value = params.timeStep;
+                        elements.timeStepValue.textContent = params.timeStep.toFixed(2);
+                        
+                        elements.dampingFactor.value = params.dampingFactor;
+                        elements.dampingFactorValue.textContent = params.dampingFactor.toFixed(2);
+                        
+                        elements.vibrationEnabled.checked = params.vibrationEnabled;
+                        elements.initialVibrationAmplitude.value = params.initialVibrationAmplitude;
+                        elements.initialVibrationAmplitudeValue.textContent = params.initialVibrationAmplitude.toFixed(3);
+                        
+                        elements.finalVibrationAmplitude.value = params.finalVibrationAmplitude;
+                        elements.finalVibrationAmplitudeValue.textContent = params.finalVibrationAmplitude.toFixed(4);
+                        
+                        elements.vibrationFrequency.value = params.vibrationFrequency;
+                        elements.vibrationFrequencyValue.textContent = params.vibrationFrequency;
+                        
+                        elements.adaptiveVibration.checked = params.adaptiveVibration;
+                    }
+                    
+                    updateNoiseParamsVisibility();
+                    drawConstellation();
+                    
+                    alert(`Конфігурація "${config.name}" успішно завантажена!`);
+                } catch (e) {
+                    alert("Помилка при завантаженні файлу: " + e.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Оновлення відображення параметрів шуму
+        function updateNoiseParamsVisibility() {
+            elements.ricianParams.style.display = elements.ricianNoise.checked ? 'block' : 'none';
+            elements.phaseNoiseParams.style.display = elements.phaseNoiseCheck.checked ? 'block' : 'none';
+            elements.awgnParams.style.display = elements.awgnNoise.checked ? 'block' : 'none';
+            elements.potentialWellParams.style.display = elements.enablePotentialWell.checked ? 'block' : 'none';
+            
+            // Додатковий контроль для ручного β
+            if (elements.phaseNoiseCheck.checked) {
+                elements.manualBetaParams.style.display = elements.autoBeta.checked ? 'none' : 'block';
+            }
+        }
+
+        // Обробники подій
+        function setupEventListeners() {
+            elements.awgnNoise.addEventListener('change', function() {
+                updateNoiseParamsVisibility();
+                drawConstellation();
+            });
+            
+            elements.lambdaParam.addEventListener('input', function() {
+                elements.lambdaParamValue.textContent = parseFloat(this.value).toFixed(2);
+            });
+            
+            elements.phaseNoiseCheck.addEventListener('change', function() {
+                updateNoiseParamsVisibility();
+                drawConstellation();
+            });
+            
+            elements.ricianNoise.addEventListener('change', function() {
+                updateNoiseParamsVisibility();
+                drawConstellation();
+            });
+            
+            elements.enablePotentialWell.addEventListener('change', function() {
+                updateNoiseParamsVisibility();
+            });
+            
+            elements.wellStrength.addEventListener('input', function() {
+                elements.wellStrengthValue.textContent = parseFloat(this.value).toFixed(2);
+            });
+            
+            elements.noiseLevel.addEventListener('input', function() {
+                elements.noiseLevelValue.textContent = parseFloat(this.value).toFixed(1) + ' дБ';
+                drawConstellation();
+            });
+            
+            elements.kParam.addEventListener('input', function() {
+                const logK = logScaleK(this.value);
+                elements.kParamValue.textContent = parseFloat(logK).toFixed(2);
+                drawConstellation();
+            });
+            
+            elements.phaseNoise.addEventListener('input', function() {
+                elements.phaseNoiseValue.textContent = parseFloat(this.value).toFixed(2);
+                drawConstellation();
+            });
+            
+            elements.autoBeta.addEventListener('change', function() {
+                updateNoiseParamsVisibility();
+            });
+            
+            elements.anisotropyParam.addEventListener('input', function() {
+                elements.anisotropyParamValue.textContent = parseFloat(this.value).toFixed(2);
+            });
+            
+            elements.iterationCount.addEventListener('input', function() {
+                elements.iterationCountValue.textContent = this.value;
+            });
+            
+            elements.timeStep.addEventListener('input', function() {
+                elements.timeStepValue.textContent = parseFloat(this.value).toFixed(2);
+            });
+            
+            elements.dampingFactor.addEventListener('input', function() {
+                elements.dampingFactorValue.textContent = parseFloat(this.value).toFixed(2);
+            });
+            
+            elements.initialVibrationAmplitude.addEventListener('input', function() {
+                elements.initialVibrationAmplitudeValue.textContent = parseFloat(this.value).toFixed(3);
+            });
+            
+            elements.finalVibrationAmplitude.addEventListener('input', function() {
+                elements.finalVibrationAmplitudeValue.textContent = parseFloat(this.value).toFixed(4);
+            });
+            
+            elements.vibrationFrequency.addEventListener('input', function() {
+                elements.vibrationFrequencyValue.textContent = this.value;
+            });
+            
+            elements.alphaParam.addEventListener('input', function() {
+                elements.alphaParamValue.textContent = parseFloat(this.value).toFixed(1);
+            });
+            
+            elements.constellationSize.addEventListener('change', initConstellation);
+            elements.initialConfig.addEventListener('change', initConstellation);
+            elements.showBoundaries.addEventListener('change', drawConstellation);
+            
+            elements.manualModeBtn.addEventListener('click', function() {
+                toggleManualMode(!isManualMode);
+                if (isManualMode && elements.initialConfig.value !== 'manual') {
+                    elements.initialConfig.value = 'manual';
+                    initConstellation();
+                }
+            });
+            
+            elements.optimizeBtn.addEventListener('click', function() {
+                if (isOptimizing) {
+                    stopRequested = true;
+                } else {
+                    optimizeWithThomson();
+                }
+            });
+            
+            elements.saveBtn.addEventListener('click', saveConfigurationToFile);
+            elements.loadBtn.addEventListener('click', function() {
+                elements.configFileInput.click();
+            });
+            
+            elements.configFileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    loadConfigurationFromFile(e.target.files[0]);
+                    e.target.value = '';
+                }
+            });
+        }
+
+        // Ініціалізація при завантаженні
+        window.addEventListener('load', function() {
+            setupEventListeners();
+            setupManualModeListeners();
+            elements.kParam.dispatchEvent(new Event('input'));
+            elements.phaseNoise.dispatchEvent(new Event('input'));
+            elements.iterationCount.dispatchEvent(new Event('input'));
+            elements.timeStep.dispatchEvent(new Event('input'));
+            elements.dampingFactor.dispatchEvent(new Event('input'));
+            elements.initialVibrationAmplitude.dispatchEvent(new Event('input'));
+            elements.finalVibrationAmplitude.dispatchEvent(new Event('input'));
+            elements.vibrationFrequency.dispatchEvent(new Event('input'));
+            elements.alphaParam.dispatchEvent(new Event('input'));
+            elements.wellStrength.dispatchEvent(new Event('input'));
+            updateNoiseParamsVisibility();
+            initConstellation();
+        });
+    </script>
+</body>
+</html>

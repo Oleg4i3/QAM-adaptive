@@ -1,0 +1,249 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paraboloid Charge Simulation</title>
+    <style>
+        body { display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; }
+        canvas { border: 1px solid black; }
+        .controls { margin: 10px; display: flex; flex-direction: column; align-items: center; }
+        .slider-container { margin: 5px; }
+        label { margin-right: 10px; }
+        #energyDisplay { margin-top: 10px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div>
+            <label for="numParticles">Number of Particles: </label>
+            <select id="numParticles">
+                <option value="16">16</option>
+                <option value="32">32</option>
+				 <option value="48">48</option>
+				  <option value="64">64</option>
+				   <option value="128">128</option>
+            </select>
+            <button onclick="startSimulation()">Start/Restart</button>
+        </div>
+        <div class="slider-container">
+            <label for="chargeSlider">Charge: <span id="chargeValue">1.0</span></label>
+            <input type="range" id="chargeSlider" min="0" max="2.5" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label for="dragSlider">Drag: <span id="dragValue">0.1</span></label>
+            <input type="range" id="dragSlider" min="0" max="0.5" step="0.01" value="0.1">
+        </div>
+    </div>
+    <canvas id="canvas" width="400" height="400"></canvas>
+    <div id="energyDisplay">Total Potential Energy: 0.00</div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const numParticlesSelect = document.getElementById('numParticles');
+        const chargeSlider = document.getElementById('chargeSlider');
+        const chargeValue = document.getElementById('chargeValue');
+        const dragSlider = document.getElementById('dragSlider');
+        const dragValue = document.getElementById('dragValue');
+        const energyDisplay = document.getElementById('energyDisplay');
+
+        let particles = [];
+        let charge = parseFloat(chargeSlider.value); // Initial charge
+        let drag = parseFloat(dragSlider.value); // Initial drag
+        const k = 0.1; // Quadratic potential constant
+        const dt = 0.1; // Time step
+        const coulombConst = 100; // Coulomb force constant
+        const minDist = 2; // Minimum distance to avoid singularities
+
+        // Update charge and drag values in real time
+        chargeSlider.addEventListener('input', () => {
+            charge = parseFloat(chargeSlider.value);
+            chargeValue.textContent = charge.toFixed(1);
+        });
+
+        dragSlider.addEventListener('input', () => {
+            drag = parseFloat(dragSlider.value);
+            dragValue.textContent = drag.toFixed(2);
+        });
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.fx = 0;
+                this.fy = 0;
+            }
+        }
+
+        function initializeParticles(num) {
+            particles = [];
+            for (let i = 0; i < num; i++) {
+                // Random positions in [-100, 100] range
+                const x = (Math.random() - 0.5) * 200;
+                const y = (Math.random() - 0.5) * 200;
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function computeForces() {
+            // Reset forces
+            particles.forEach(p => {
+                p.fx = 0;
+                p.fy = 0;
+            });
+
+            // Coulomb repulsion and quadratic potential
+            for (let i = 0; i < particles.length; i++) {
+                const pi = particles[i];
+                // Quadratic potential force: F = -k * r
+                pi.fx += -k * pi.x;
+                pi.fy += -k * pi.y;
+
+                // Coulomb forces
+                for (let j = i + 1; j < particles.length; j++) {
+                    const pj = particles[j];
+                    const dx = pi.x - pj.x;
+                    const dy = pi.y - pj.y;
+                    const r = Math.sqrt(dx * dx + dy * dy);
+                    const rClamped = Math.max(r, minDist); // Prevent singularity
+                    const force = coulombConst * charge * charge / (rClamped * rClamped);
+                    const fx = force * dx / rClamped;
+                    const fy = force * dy / rClamped;
+                    pi.fx += fx;
+                    pi.fy += fy;
+                    pj.fx -= fx;
+                    pj.fy -= fy;
+                }
+
+                // Drag force: F = -b * v
+                pi.fx += -drag * pi.vx;
+                pi.fy += -drag * pi.vy;
+            }
+        }
+
+        function computePotentialEnergy() {
+            let coulombEnergy = 0;
+            let quadraticEnergy = 0;
+
+            // Coulomb potential energy
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const pi = particles[i];
+                    const pj = particles[j];
+                    const dx = pi.x - pj.x;
+                    const dy = pi.y - pj.y;
+                    const r = Math.sqrt(dx * dx + dy * dy);
+                    const rClamped = Math.max(r, minDist); // Prevent singularity
+                    coulombEnergy += coulombConst * charge * charge / rClamped;
+                }
+            }
+
+            // Quadratic potential energy
+            particles.forEach(p => {
+                quadraticEnergy += 0.5 * k * (p.x * p.x + p.y * p.y);
+            });
+
+            return coulombEnergy + quadraticEnergy;
+        }
+
+        function updatePositions() {
+            particles.forEach(p => {
+                // Update velocities (Euler integration)
+                p.vx += p.fx * dt;
+                p.vy += p.fy * dt;
+                // Update positions
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+            });
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Transform to center origin and scale
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(2, -2); // Scale and flip y-axis
+
+            // Draw particles
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+            });
+
+            ctx.restore();
+
+            // Update energy display
+            const energy = computePotentialEnergy();
+            energyDisplay.textContent = `Total Potential Energy: ${energy.toFixed(2)}`;
+        }
+
+        function simulate() {
+            computeForces();
+            updatePositions();
+            draw();
+            requestAnimationFrame(simulate);
+        }
+
+        function startSimulation() {
+            const numParticles = parseInt(numParticlesSelect.value);
+            initializeParticles(numParticles);
+            // Ensure simulation runs
+            if (!window.isSimulating) {
+                window.isSimulating = true;
+                simulate();
+            }
+        }
+
+        // Start with default simulation
+        startSimulation();
+    </script>
+</body>
+</html>
